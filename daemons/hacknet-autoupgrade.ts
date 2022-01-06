@@ -20,7 +20,7 @@ export async function main(ns: NS) {
         for (let idx = 0; idx < hacknet.numNodes(); idx++) {
             const info = hacknet.getNodeStats(idx)
             const cheapestUpgrade = determineCheapestUpgrade(ns, info, idx)
-            
+
             if (cheapestUpgrade != undefined) {
                 nodes.push({
                     idx,
@@ -35,37 +35,45 @@ export async function main(ns: NS) {
         sortNodes(nodes)
 
         let idx = 0
-        while(idx < nodes.length) {
+        while (idx < nodes.length) {
             const node = nodes[idx]
-            ns.print(`Upgrading node ${idx}`)
             const option = node.cheapestUpgrade
-            ns.print(`Performing ${option.type} Upgrade on Node ${node.idx}`)
-            option.performUpgrade()
-            
-            if (nodes.length != ns.hacknet.numNodes()) {
-                ns.print("Node count changed, terminating cycle.")
+            if (option.cost < hacknet.getPurchaseNodeCost() || hacknet.numNodes() == hacknet.maxNumNodes()) {
+                ns.print(`Upgrading node ${idx}`)
+                ns.print(`Performing ${option.type} Upgrade on Node ${node.idx}`)
+                option.performUpgrade()
+                await ns.sleep(Math.ceil((option.cost / totalProduction) * 1000))
+
+                if (nodes.length != ns.hacknet.numNodes()) {
+                    ns.print("Node count changed, terminating cycle.")
+                    break;
+                }
+    
+                const oldOrder = nodes.map(node => node.idx).join(',')
+    
+                const newOption = determineCheapestUpgrade(ns, node.info, node.idx)
+                if (newOption == undefined) {
+                    nodes.splice(idx, 1)
+                } else {
+                    node.cheapestUpgrade = newOption
+                }
+    
+                sortNodes(nodes)
+                const newOrder = nodes.map(node => node.idx).join(',')
+    
+                if (oldOrder == newOrder) {
+                    idx++
+                } else {
+                    idx = 0
+                }
+    
+            } else {
+                ns.print("Purchasing Hacknet Node")
+                hacknet.purchaseNode()
+                await ns.sleep(Math.ceil((hacknet.getPurchaseNodeCost() / totalProduction) * 1000))
+                ns.print("New node purchased. Terminating cycle.")
                 break;
             }
-
-            const oldOrder = nodes.map(node => node.idx).join(',')
-
-            const newOption = determineCheapestUpgrade(ns, node.info, node.idx)
-            if (newOption == undefined) {
-                nodes.splice(idx, 1)
-            } else {
-                node.cheapestUpgrade = newOption
-            }
-
-            sortNodes(nodes)
-            const newOrder = nodes.map(node => node.idx).join(',')
-
-            if (oldOrder == newOrder) {
-                idx++
-            } else {
-                idx = 0
-            }
-
-            await ns.sleep(Math.ceil((option.cost / totalProduction) * 1000))
         }
         ns.print("Upgrade cycle complete.")
     }
