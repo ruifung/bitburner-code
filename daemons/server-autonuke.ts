@@ -3,23 +3,35 @@ import { NS, Server } from "../types/NetscriptDefinitions/index"
 const hackScript = "hack-server.js"
 
 export async function main(ns: NS) {
-    let currentServer = ns.getServer()
+    ns.disableLog("getHackingLevel")
+    ns.disableLog("scan")
+    ns.disableLog("sleep")
 
+    let currentServer = ns.getServer()
+    let prevTarget: string | null = null
     while (true) {
+        const bestTarget: string = ns.read("/data/best-hack-target.txt")
+
+        if (prevTarget != bestTarget) {
+            prevTarget = bestTarget
+            ns.exec('kill-all-autohacks.js', 'home')
+        }
+
         ns.print("Starting search cycle.")
-        const ownedServers = ns.getPurchasedServers()
-        const visited = new Set([currentServer.hostname, ...ownedServers])
+        const blacklist: string[] = []
+        const visited = new Set([currentServer.hostname, ...blacklist])
 
         let targetQueue = filteredScan(ns, 'home', visited).reverse()
 
         while(targetQueue.length > 0) {
             const nextTarget = targetQueue.pop() as Server
-            await attackTarget(ns, nextTarget)
+            await attackTarget(ns, nextTarget, bestTarget == "" || bestTarget == null ? nextTarget.hostname : bestTarget)
             visited.add(nextTarget.hostname)
 
             const curQueueSize = targetQueue.length
             const newQueueSize = targetQueue.push(...filteredScan(ns, nextTarget.hostname, visited))
-            ns.print(`Found ${newQueueSize - curQueueSize} new targets.`)
+            if (newQueueSize != curQueueSize)
+                ns.print(`Found ${newQueueSize - curQueueSize} new targets.`)
         }
 
         ns.print("Cycle complete.")
@@ -34,11 +46,11 @@ function filteredScan(ns: NS, hostname: string, blacklist: Set<string>): Server[
     .filter(target => target.requiredHackingSkill <= ns.getHackingLevel())
 }
 
-async function attackTarget(ns: NS, target: Server) {
-    if (target.hostname == 'home' || target.purchasedByPlayer) {
+async function attackTarget(ns: NS, target: Server, hackTarget: string = target.hostname) {
+    if (target.hostname == 'home') {
         return
     }
-    ns.print(`Attacking: ${target.hostname}`)
+    ns.print(`Checking: ${target.hostname}`)
     let nuked = false
     if (!target.hasAdminRights) {
         if (target.numOpenPortsRequired > target.openPortCount) {
@@ -73,10 +85,11 @@ async function attackTarget(ns: NS, target: Server) {
 
     const ramAvailable = target.maxRam - target.ramUsed
     const hackScriptRam = ns.getScriptRam(hackScript, 'home')
-    if ((target.hasAdminRights || nuked) && !ns.ps(target.hostname).map( ps => ps.filename).includes(hackScript) && ramAvailable > hackScriptRam) {
+    if ((target.hasAdminRights || nuked) 
+        && !ns.ps(target.hostname).map( ps => ps.filename).includes(hackScript) && ramAvailable > hackScriptRam) {
         ns.print(`Launching HackHelper: ${target.hostname}`)
         await ns.scp(hackScript, 'home', target.hostname)
-        ns.exec(hackScript, target.hostname, Math.floor(ramAvailable / hackScriptRam), target.hostname)
+        ns.exec(hackScript, target.hostname, Math.floor(ramAvailable / hackScriptRam), hackTarget)
     }
-    await ns.sleep(0)
+    await ns.sleep(1000)
 }

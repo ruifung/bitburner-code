@@ -29,6 +29,7 @@ export async function main(ns: NS) {
                 })
             }
             totalProduction += info.production
+            await ns.sleep(1)
         }
 
         ns.print(`Upgrade Cycle Start. Handling ${nodes.length} nodes.`)
@@ -39,9 +40,9 @@ export async function main(ns: NS) {
             const node = nodes[idx]
             const option = node.cheapestUpgrade
             if (option.cost < hacknet.getPurchaseNodeCost() || hacknet.numNodes() == hacknet.maxNumNodes()) {
-                ns.print(`Upgrading node ${idx}`)
                 ns.print(`Performing ${option.type} Upgrade on Node ${node.idx}`)
                 option.performUpgrade()
+                eval("window.skipTimeoutHack = true")
                 await ns.sleep(Math.ceil((option.cost / totalProduction) * 1000))
 
                 if (nodes.length != ns.hacknet.numNodes()) {
@@ -70,6 +71,7 @@ export async function main(ns: NS) {
             } else {
                 ns.print("Purchasing Hacknet Node")
                 hacknet.purchaseNode()
+                eval("window.skipTimeoutHack = true")
                 await ns.sleep(Math.ceil((hacknet.getPurchaseNodeCost() / totalProduction) * 1000))
                 ns.print("New node purchased. Terminating cycle.")
                 break;

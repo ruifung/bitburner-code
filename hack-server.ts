@@ -3,16 +3,16 @@ import { NS } from "./types/NetscriptDefinitions/index"
 
 export async function main(ns: NS) {
     const target = ns.args[0] as string | undefined
-    let targetServer = ns.getServer(target)
+    ns.print(`TARGET SERVER: ${target}`)
     while (true) {
+        let targetServer = ns.getServer(target)
         if (targetServer.hostname != 'home') {
-            while (targetServer.hackDifficulty > targetServer.minDifficulty || targetServer.moneyAvailable < targetServer.moneyMax) {
-                targetServer = ns.getServer()
-                if (targetServer.hackDifficulty > targetServer.minDifficulty) {
+            while (Math.round(targetServer.hackDifficulty) > targetServer.minDifficulty || targetServer.moneyAvailable < (targetServer.moneyMax * .9)) {
+                targetServer = ns.getServer(target)
+                if (Math.round(targetServer.hackDifficulty) > targetServer.minDifficulty) {
                     ns.print(`Attempting Weaken from ${targetServer.hackDifficulty} to ${targetServer.minDifficulty} : ${targetServer.hostname}`)
                     await ns.weaken(targetServer.hostname)
-                }
-                if (targetServer.hackDifficulty == targetServer.minDifficulty && targetServer.moneyAvailable < targetServer.moneyMax) {
+                } else if (targetServer.moneyAvailable < (targetServer.moneyMax * .9)) {
                     ns.print(`Attempting grow from ${targetServer.moneyAvailable} to ${targetServer.moneyMax}: ${targetServer.hostname}`)
                     await ns.grow(targetServer.hostname)
                 }
@@ -22,6 +22,7 @@ export async function main(ns: NS) {
         } else {
             ns.exit()
         }
-        await ns.sleep(0)
+        eval("window.skipTimeoutHack = true")
+        await ns.sleep(500)
     }
 }
