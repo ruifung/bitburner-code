@@ -58,14 +58,14 @@ export async function main(ns: NS) {
 
             sortNodes(nodes)
             const newOrder = nodes.map(node => node.idx).join(',')
-            
+
             if (oldOrder == newOrder) {
                 idx++
             } else {
                 idx = 0
             }
 
-            await ns.sleep((option.cost / totalProduction) * 1000)
+            await ns.sleep(Math.ceil((option.cost / totalProduction) * 1000))
         }
         ns.print("Upgrade cycle complete.")
     }
