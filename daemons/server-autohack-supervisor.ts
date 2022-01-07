@@ -14,6 +14,7 @@ export async function main(ns: NS) {
     const lastAssignedTarget: Map<string, string> = new Map()
     let targetIdx = 0
     while (true) {
+        const hackScriptRam = ns.getScriptRam(hackScript, 'home')
         const targets: Path[] = JSON.parse(ns.read("/data/best-hack-targets.txt"))
 
         if (prevTargetCount != targets.length) {
@@ -27,11 +28,16 @@ export async function main(ns: NS) {
         const blacklist: string[] = [currentServer.hostname]
 
         const serverQueue = deepScan(ns, 'home', blacklist).sort((a, b) => a.maxRam - b.maxRam)
+        .filter(it => it.maxRam >= hackScriptRam)
 
-        while(serverQueue.length > 0) {
+        while(serverQueue.length > 0) {            
             const nextServer = serverQueue.pop() as Server
+            if (hackScriptRunning(ns, nextServer.hostname)) {
+                continue;
+            }
+
             const hackTarget = targets[targetIdx].hostname
-            const threadsAvailable = Math.floor((nextServer.maxRam - nextServer.ramUsed) / ns.getScriptRam(hackScript, 'home'))
+            const threadsAvailable = Math.floor((nextServer.maxRam - nextServer.ramUsed) / hackScriptRam)
             let expectedHackResult = (ns.hackAnalyze(hackTarget) * threadsAvailable) + (targetHackResults.get(hackTarget) ?? 0)
 
             if (lastAssignedTarget.has(nextServer.hostname)) {
@@ -54,6 +60,10 @@ export async function main(ns: NS) {
         ns.print("Cycle complete.")
         await ns.sleep(1000)
     }
+}
+
+function hackScriptRunning(ns: NS, host: string): boolean {
+    return ns.ps(host).map(it => it.filename).includes(hackScript)
 }
 
 function deepScan(ns: NS, startHost: string, blacklist: string[]): Server[] {
@@ -83,13 +93,13 @@ async function attackTarget(ns: NS, server: Server, hackTarget: string = server.
     if (server.hostname == 'home') {
         return
     }
-    ns.print(`Checking: ${server.hostname}`)
+    ns.print(`Checking: ${server.hostname}, Target: ${hackTarget}`)
     let nuked = breachTarget(ns, server.hostname)
 
     const ramAvailable = server.maxRam - server.ramUsed
     const hackScriptRam = ns.getScriptRam(hackScript, 'home')
     if ((server.hasAdminRights || nuked) 
-        && !ns.ps(server.hostname).map( ps => ps.filename).includes(hackScript) && ramAvailable > hackScriptRam) {
+        && !ns.ps(server.hostname).map( ps => ps.filename).includes(hackScript) && ramAvailable >= hackScriptRam) {
         ns.print(`Launching HackHelper: ${server.hostname}`)
         await ns.scp(hackScript, 'home', server.hostname)
         ns.exec(hackScript, server.hostname, Math.floor(ramAvailable / hackScriptRam), hackTarget)
