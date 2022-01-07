@@ -29,8 +29,8 @@ export async function main(ns: NS) {
                 })
             }
             totalProduction += info.production
-            await ns.sleep(1)
         }
+        totalProduction += (ns.getScriptIncome()[0] * .5)
 
         ns.print(`Upgrade Cycle Start. Handling ${nodes.length} nodes.`)
         sortNodes(nodes)
@@ -43,7 +43,7 @@ export async function main(ns: NS) {
                 ns.print(`Performing ${option.type} Upgrade on Node ${node.idx}`)
                 option.performUpgrade()
                 eval("window.skipTimeoutHack = true")
-                await ns.sleep(Math.ceil((option.cost / totalProduction) * 1000))
+                await ns.sleep(Math.max(Math.ceil((option.cost / totalProduction) * 1000), 100))
 
                 if (nodes.length != ns.hacknet.numNodes()) {
                     ns.print("Node count changed, terminating cycle.")
@@ -72,7 +72,7 @@ export async function main(ns: NS) {
                 ns.print("Purchasing Hacknet Node")
                 hacknet.purchaseNode()
                 eval("window.skipTimeoutHack = true")
-                await ns.sleep(Math.ceil((hacknet.getPurchaseNodeCost() / totalProduction) * 1000))
+                await ns.sleep(Math.max(Math.ceil((hacknet.getPurchaseNodeCost() / totalProduction) * 1000), 100))
                 ns.print("New node purchased. Terminating cycle.")
                 break;
             }
