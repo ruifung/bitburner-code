@@ -1,14 +1,11 @@
 import { NS } from "./types/NetscriptDefinitions/index"
 
 export async function main(ns: NS) {
-    const requestedRam = ns.args[0] as number
+    const requestedRamCount = ns.args[0] as number
     const requestedHostname = (ns.args[1] ?? "spk-node") as string
     const moneyAvailable = ns.getPlayer().money
 
-    if (Math.log2(requestedRam) % 1 !== 0) {
-        ns.tprint("Requested RAM must be power of 2.")
-        ns.exit()
-    }
+    const requestedRam = Math.pow(2, requestedRamCount)
 
     const serverCost = ns.getPurchasedServerCost(requestedRam)
     if (serverCost > moneyAvailable) {
