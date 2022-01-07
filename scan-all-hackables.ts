@@ -1,6 +1,6 @@
 import { NS, Server } from "./types/NetscriptDefinitions/index"
 
-interface Path {
+export interface Path {
     hostname: string,
     predecessors: string[]
 }
@@ -32,8 +32,8 @@ export async function main(ns: NS) {
     lookupMap.set("home", ns.getServer("home"))
     sortedList.forEach(({path, server}) => lookupMap.set(path.hostname, server))
 
-    const highestCashTarget = sortedList[sortedList.length - 1]
-    await ns.write("/data/best-hack-target.txt", highestCashTarget.path.hostname, "w")
+    const reverseList = sortedList.map(it => it.path).reverse()
+    await ns.write("/data/best-hack-targets.txt", JSON.stringify(reverseList, undefined, 2), "w")
 
     sortedList.forEach(({path, server}, idx) => {
         ns.tprint("===================================")
